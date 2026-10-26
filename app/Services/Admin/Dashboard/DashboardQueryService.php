@@ -49,7 +49,7 @@ class DashboardQueryService
         $foundReports = $this->buildFoundReports($foundHasHomeFlag);
         $claimReports = $this->buildClaimReports($foundHasHomeFlag, $lostHasHomeFlag);
 
-        return $lostReports
+        return $lostReports->toBase()
             ->merge($foundReports)
             ->merge($claimReports)
             ->sortByDesc('activity_at')

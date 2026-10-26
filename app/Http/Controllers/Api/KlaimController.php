@@ -37,7 +37,7 @@ class KlaimController extends Controller
 
         return response()->json([
             'message' => $result['message'],
-            'data' => new KlaimResource($result['claim']->load(['barang:id,nama_barang', 'laporanHilang:id,nama_barang,kontak_pelapor', 'user:id,nomor_telepon'])),
+            'data' => new KlaimResource($result['claim']->load(['barang:id,nama_barang', 'laporanHilang:id,nama_barang,kontak_pelapor', 'user:id,name,email,nomor_telepon'])),
         ], 201);
     }
 
