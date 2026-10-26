@@ -29,7 +29,27 @@ class MediaController extends Controller
 
         $relativePath = $folder.'/'.$path;
 
-        abort_unless(Storage::disk('public')->exists($relativePath), 404);
+        if (! Storage::disk('public')->exists($relativePath)) {
+            while (\ob_get_level() > 0) {
+                \ob_end_clean();
+            }
+
+            if (in_array($folder, ['barang-hilang', 'barang-temuan'], true)) {
+                return response()->file(public_path('img/item-placeholder.svg'), [
+                    'Content-Type' => 'image/svg+xml',
+                    'Cache-Control' => 'no-store, no-cache, must-revalidate',
+                ]);
+            }
+
+            if (in_array($folder, ['profil-admin', 'profil-super', 'profil-user'], true)) {
+                return response()->file(public_path('img/profil.jpg'), [
+                    'Content-Type' => 'image/jpeg',
+                    'Cache-Control' => 'no-store, no-cache, must-revalidate',
+                ]);
+            }
+
+            abort(404);
+        }
 
         $absolutePath = Storage::disk('public')->path($relativePath);
         $mimeType = mime_content_type($absolutePath) ?: 'application/octet-stream';

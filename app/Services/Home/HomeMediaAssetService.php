@@ -11,7 +11,7 @@ class HomeMediaAssetService
     {
         $cleanPath = str_replace('\\', '/', trim($fotoPath, '/'));
         if ($cleanPath === '') {
-            return asset('img/login-image.png');
+            return asset('img/item-placeholder.svg');
         }
 
         if (Str::startsWith($cleanPath, ['http://', 'https://'])) {
@@ -55,7 +55,7 @@ class HomeMediaAssetService
                 return $version ? ($url.'?v='.$version) : $url;
             }
 
-            return asset('img/login-image.png');
+            return asset('img/item-placeholder.svg');
         }
 
         if (Storage::disk('public')->exists($cleanPath)) {
@@ -74,7 +74,7 @@ class HomeMediaAssetService
             return $version ? ($url.'?v='.$version) : $url;
         }
 
-        return asset('img/login-image.png');
+        return asset('img/item-placeholder.svg');
     }
 
     /**
@@ -86,7 +86,7 @@ class HomeMediaAssetService
     {
         $cleanPath = str_replace('\\', '/', trim($fotoPath, '/'));
         if ($cleanPath === '') {
-            return asset('img/login-image.png');
+            return asset('img/item-placeholder.svg');
         }
 
         if (Str::startsWith($cleanPath, ['http://', 'https://'])) {
@@ -109,7 +109,7 @@ class HomeMediaAssetService
             return route('media.image', ['folder' => $defaultFolder, 'path' => $cleanPath]);
         }
 
-        return asset('img/login-image.png');
+        return asset('img/item-placeholder.svg');
     }
 
     public function resolveUserAvatarUrl(?string $profilePath): string

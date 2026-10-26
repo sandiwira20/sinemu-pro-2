@@ -67,7 +67,7 @@
                                     <div class="item-avatar avatar-sand w-10 h-10 rounded-lg shrink-0">
                                         <span class="item-avatar-fallback">{{ strtoupper(substr($item->nama_barang, 0, 1)) }}</span>
                                         @php
-                                            $fotoUrlDefault = asset('img/login-image.png');
+                                            $fotoUrlDefault = asset('img/item-placeholder.svg');
                                             $fotoUrl = null;
                                             $fotoSrc = null;
                                             $localFotoPath = null;

@@ -281,9 +281,9 @@
                             data-category="{{ strtoupper($item['category']) }}" data-name="{{ strtolower($item['name']) }}"
                             data-region="{{ strtolower($item['location']) }}" data-date="{{ $item['date'] }}">
                             <div class="item-media">
-                                <img src="{{ $item['image_url'] ?? asset('img/login-image.png') }}" alt="{{ $item['name'] }}"
+                                <img src="{{ $item['image_url'] ?? asset('img/item-placeholder.svg') }}" alt="{{ $item['name'] }}"
                                     loading="lazy" decoding="async" width="600" height="360"
-                                    data-fallback="{{ asset('img/login-image.png') }}"
+                                    data-fallback="{{ asset('img/item-placeholder.svg') }}"
                                     onerror="this.onerror=null;this.src=this.dataset.fallback;">
                                 <span
                                     class="item-status {{ $item['status_class'] ?? 'item-status-danger' }}">{{ $item['status_label'] ?? 'Belum Ditemukan' }}</span>
@@ -345,9 +345,9 @@
                             data-category="{{ strtoupper($item['category']) }}" data-name="{{ strtolower($item['name']) }}"
                             data-region="{{ strtolower($item['location']) }}" data-date="{{ $item['date'] }}">
                             <div class="item-media">
-                                <img src="{{ $item['image_url'] ?? asset('img/login-image.png') }}" alt="{{ $item['name'] }}"
+                                <img src="{{ $item['image_url'] ?? asset('img/item-placeholder.svg') }}" alt="{{ $item['name'] }}"
                                     loading="lazy" decoding="async" width="600" height="360"
-                                    data-fallback="{{ asset('img/login-image.png') }}"
+                                    data-fallback="{{ asset('img/item-placeholder.svg') }}"
                                     onerror="this.onerror=null;this.src=this.dataset.fallback;">
                                 <span
                                     class="item-status {{ $statusClass }}">{{ $item['claim_status_label'] ?? 'Tersedia untuk Diklaim' }}</span>

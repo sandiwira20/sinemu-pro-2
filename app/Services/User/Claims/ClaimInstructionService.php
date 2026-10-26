@@ -160,7 +160,7 @@ class ClaimInstructionService
     {
         $cleanPath = str_replace('\\', '/', trim($fotoPath, '/'));
         if ($cleanPath === '') {
-            return asset('img/login-image.png');
+            return asset('img/item-placeholder.svg');
         }
 
         if (Str::startsWith($cleanPath, ['http://', 'https://'])) {

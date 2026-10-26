@@ -613,7 +613,7 @@
                 </header>
                 <div class="claim-item-summary-body">
                     <div class="claim-item-image-wrap">
-                        <img src="{{ $itemImageUrl }}" alt="{{ $barang?->nama_barang ?? 'Barang Temuan' }}" loading="lazy" decoding="async" data-fallback="{{ asset('img/login-image.png') }}" onerror="this.onerror=null;this.src=this.dataset.fallback;">
+                        <img src="{{ $itemImageUrl }}" alt="{{ $barang?->nama_barang ?? 'Barang Temuan' }}" loading="lazy" decoding="async" data-fallback="{{ asset('img/item-placeholder.svg') }}" onerror="this.onerror=null;this.src=this.dataset.fallback;">
                     </div>
                     <div class="claim-item-info">
                         <h4 class="claim-item-name">{{ $barang?->nama_barang ?? $klaim->laporanHilang?->nama_barang ?? 'Barang Temuan' }}</h4>

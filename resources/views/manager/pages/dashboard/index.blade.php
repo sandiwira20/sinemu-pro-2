@@ -110,7 +110,7 @@
                                         <div class="item-avatar {{ $report->avatar_class ?? '' }} w-10 h-10 rounded-lg shrink-0">
                                             <span class="item-avatar-fallback">{{ $report->avatar ?? '?' }}</span>
                                             @php
-                                                $fotoUrlDefault = asset('img/login-image.png');
+                                                $fotoUrlDefault = asset('img/item-placeholder.svg');
                                                 $fotoSrc = null;
                                                 $rawFotoPath = str_replace('\\', '/', trim((string) ($report->foto_barang ?? '')));
                                                 $localFotoPath = null;

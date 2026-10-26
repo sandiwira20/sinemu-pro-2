@@ -69,7 +69,7 @@
                                     <div class="item-avatar avatar-mint">
                                         <span class="item-avatar-fallback">{{ strtoupper(substr($claim->barang_temuan, 0, 1)) }}</span>
                                         @php
-                                            $fotoUrlDefault = asset('img/login-image.png');
+                                            $fotoUrlDefault = asset('img/item-placeholder.svg');
                                             $fotoSrc = null;
                                             $rawFotoPath = str_replace('\\', '/', trim((string) ($claim->foto_barang ?? '')));
                                             $localFotoPath = null;

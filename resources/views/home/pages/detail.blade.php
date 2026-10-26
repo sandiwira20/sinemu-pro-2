@@ -10,7 +10,9 @@
         <div class="report-detail-stage">
             <section class="report-detail-hero">
                 <div class="report-detail-media">
-                    <img src="{{ $detail->image_url }}" alt="{{ $detail->title }}" loading="lazy" decoding="async">
+                    <img src="{{ $detail->image_url }}" alt="{{ $detail->title }}" loading="lazy" decoding="async"
+                        data-fallback="{{ asset('img/item-placeholder.svg') }}"
+                        onerror="this.onerror=null;this.src=this.dataset.fallback;">
                 </div>
 
                 <div class="report-detail-main">
