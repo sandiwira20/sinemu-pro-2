@@ -1,6 +1,6 @@
 services:
   app:
-    image: ghcr.io/chainz-bit/sinemu-pro-2:latest
+    build: .
     container_name: sinemu-app
     restart: always
     ports:
@@ -10,17 +10,16 @@ services:
     depends_on:
       - db
     volumes:
-      - storage_data:/var/www/html/storage/app/public  # ← TAMBAHKAN INI
+      - storage_data:/var/www/html/storage/app/public
     networks:
       - app-network
+
   db:
     image: mysql:8.0
     container_name: sinemu_db
     restart: always
     environment:
       MYSQL_DATABASE: ${DB_DATABASE}
-      MYSQL_USER: ${DB_USERNAME}
-      MYSQL_PASSWORD: ${DB_PASSWORD}
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
     volumes:
       - db_data:/var/lib/mysql
@@ -29,7 +28,7 @@ services:
 
 volumes:
   db_data:
-  storage_data:  # ← TAMBAHKAN INI
+  storage_data:
 
 networks:
   app-network:
