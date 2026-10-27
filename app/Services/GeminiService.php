@@ -13,6 +13,8 @@ class GeminiService
 
     private string $baseUrl;
 
+    private ?string $lastError = null;
+
     private const SYSTEM_PROMPT = <<<'PROMPT'
 Kamu adalah "Sinu", asisten virtual eksklusif milik Sinemu Indonesia — platform komunitas untuk pencarian barang hilang dan temuan.
 
@@ -75,25 +77,33 @@ PROMPT;
             ];
         }
 
-        // Models to try in order (primary + fallbacks)
-        $modelsToTry = array_unique(array_filter([
+        // Model utama + cadangan, diurutkan dari yang paling ringan/cepat.
+        // Hanya ambil maksimal 3 agar total waktu tunggu tetap wajar.
+        $modelsToTry = array_slice(array_values(array_unique(array_filter([
             $this->model,
-            'gemini-3.8-flash',
-            'gemini-3.7-flash',
-            'gemini-3.6-flash',
-        ]));
+            'gemini-2.0-flash-lite',
+            'gemini-1.5-flash-latest',
+        ]))), 0, 3);
 
-        $lastError = null;
+        // Batas total waktu tunggu pengguna.
+        $deadline = microtime(true) + 45;
+        $this->lastError = null;
 
         foreach ($modelsToTry as $model) {
-            $result = $this->callApi($model, $userMessage, $history);
+            $remaining = $deadline - microtime(true);
+
+            if ($remaining < 5) {
+                break;
+            }
+
+            $result = $this->callApi($model, $userMessage, $history, (int) min(20, floor($remaining)));
 
             if ($result !== null) {
                 return $result;
             }
         }
 
-        Log::error('All Gemini models failed', ['last_error' => $lastError]);
+        Log::error('All Gemini models failed', ['last_error' => $this->lastError]);
 
         return [
             'success' => false,
@@ -103,16 +113,19 @@ PROMPT;
 
     /**
      * Call Gemini API with a specific model, retrying on 503.
+     * Return null agar chat() bisa mencoba model berikutnya.
      */
-    private function callApi(string $model, string $userMessage, array $history): ?array
+    private function callApi(string $model, string $userMessage, array $history, int $timeout = 20): ?array
     {
         $contents = $this->buildContents($history, $userMessage);
         $maxRetries = 2;
 
         for ($attempt = 0; $attempt <= $maxRetries; $attempt++) {
             try {
-                $response = Http::timeout(30)
-                    ->post("{$this->baseUrl}/models/{$model}:generateContent?key={$this->apiKey}", [
+                $response = Http::connectTimeout(5)
+                    ->timeout($timeout)
+                    ->withHeaders(['x-goog-api-key' => $this->apiKey])
+                    ->post("{$this->baseUrl}/models/{$model}:generateContent", [
                         'system_instruction' => [
                             'parts' => [['text' => self::SYSTEM_PROMPT]],
                         ],
@@ -133,7 +146,8 @@ PROMPT;
 
                 // 404 = model not found, don't retry - try next model
                 if ($response->status() === 404) {
-                    Log::warning("Gemini model not available: {$model}", ['body' => $response->body()]);
+                    $this->lastError = "Model not found: {$model}";
+                    Log::warning("Gemini model not available: {$model}");
 
                     return null;
                 }
@@ -145,16 +159,17 @@ PROMPT;
 
                         continue;
                     }
+                    $this->lastError = "Model overloaded: {$model}";
                     Log::warning("Gemini model {$model} overloaded after retries");
 
                     return null; // try next model
                 }
 
                 if ($response->failed()) {
+                    $this->lastError = "HTTP {$response->status()} on model {$model}";
                     Log::error('Gemini API error', [
                         'model' => $model,
                         'status' => $response->status(),
-                        'body' => $response->body(),
                     ]);
 
                     return null; // try next model
@@ -176,6 +191,7 @@ PROMPT;
                 ];
 
             } catch (\Exception $e) {
+                $this->lastError = $e->getMessage();
                 Log::error('Gemini service exception', [
                     'model' => $model,
                     'error' => $e->getMessage(),
