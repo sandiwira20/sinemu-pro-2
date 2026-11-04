@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\ChatbotConversation;
 use App\Models\ChatbotMessage;
-use App\Services\GeminiService;
+use App\Services\ChatbotService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -13,7 +13,7 @@ use Illuminate\Support\Str;
 class ChatbotController extends Controller
 {
     public function __construct(
-        private readonly GeminiService $gemini,
+        private readonly ChatbotService $chatbot,
     ) {}
 
     /**
@@ -61,7 +61,7 @@ class ChatbotController extends Controller
         array_pop($history);
 
         // Get AI response
-        $result = $this->gemini->chat($userMessage, $history);
+        $result = $this->chatbot->chat($userMessage, $history);
 
         // Save assistant message
         $assistantMessage = ChatbotMessage::create([

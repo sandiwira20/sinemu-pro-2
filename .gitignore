@@ -28,3 +28,7 @@ Thumbs.db
 .dev.vars*
 !.dev.vars.example
 !.env.example
+
+deploy_key
+tmp_cookie.txt
+tmp_login.html

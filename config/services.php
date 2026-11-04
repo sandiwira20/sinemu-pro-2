@@ -41,7 +41,18 @@ return [
 
     'gemini' => [
         'api_key' => env('GEMINI_API_KEY'),
-        'model' => env('GEMINI_MODEL', 'gemini-2.0-flash'),
+        'model'   => env('GEMINI_MODEL', 'gemini-2.0-flash'),
+        'timeout' => (int) env('GEMINI_TIMEOUT', 15),
+    ],
+
+    'groq' => [
+        'api_key' => env('GROQ_API_KEY'),
+        'model'   => env('GROQ_MODEL', 'llama-3.3-70b-versatile'),
+        'timeout' => (int) env('GROQ_TIMEOUT', 15),
+    ],
+
+    'chatbot' => [
+        'provider' => env('CHATBOT_PROVIDER', 'groq'),
     ],
 
 ];

@@ -25,10 +25,8 @@ class GeminiMatchingService
      * Model yang akan dicoba secara berurutan jika model sebelumnya gagal
      */
     private const FALLBACK_MODELS = [
-        'gemini-3.6-flash',
-        'gemini-3.7-flash',
-        'gemini-3.8-flash',
-        'gemini-flash-latest',
+        'gemini-2.0-flash',
+        'gemini-1.5-flash',
     ];
 
     /**
@@ -314,9 +312,10 @@ class GeminiMatchingService
         $maxRetries = 1;
         for ($attempt = 0; $attempt <= $maxRetries; $attempt++) {
             try {
-                $response = Http::timeout(self::REQUEST_TIMEOUT)
+                $response = Http::withHeaders(['x-goog-api-key' => $this->apiKey])
+                    ->timeout(self::REQUEST_TIMEOUT)
                     ->post(
-                        "{$this->baseUrl}/models/{$model}:generateContent?key={$this->apiKey}",
+                        "{$this->baseUrl}/models/{$model}:generateContent",
                         $payload
                     );
 
