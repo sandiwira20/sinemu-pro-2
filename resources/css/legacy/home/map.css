@@ -92,6 +92,13 @@
     background: transparent;
 }
 
+.home-user-marker {
+    width: 28px !important;
+    height: 28px !important;
+    border: 0 !important;
+    background: transparent !important;
+}
+
 .home-location-marker__pin {
     position: relative;
     width: 44px;

@@ -126,6 +126,21 @@ function createPickupMarkerIcon(leaflet) {
     });
 }
 
+function createUserMarkerIcon(leaflet) {
+    return leaflet.divIcon({
+        className: 'home-user-marker',
+        html: [
+            '<div style="position:relative;width:28px;height:28px;display:flex;align-items:center;justify-content:center;">',
+            '<div style="position:absolute;width:28px;height:28px;border-radius:50%;background:rgba(13,148,136,0.3);box-shadow:0 0 12px rgba(13,148,136,0.4);"></div>',
+            '<div style="width:16px;height:16px;border-radius:50%;background:#0d9488;border:3px solid #ffffff;box-shadow:0 2px 6px rgba(0,0,0,0.35);z-index:2;"></div>',
+            '</div>'
+        ].join(''),
+        iconSize: [28, 28],
+        iconAnchor: [14, 14],
+        popupAnchor: [0, -16]
+    });
+}
+
 export function initMap() {
     const locations = parsePickupLocations();
 
@@ -436,7 +451,9 @@ export function initMap() {
                     map.removeLayer(userRadius);
                 }
 
-                userMarker = window.L.marker([userCoords.lat, userCoords.lng]).addTo(map);
+                userMarker = window.L.marker([userCoords.lat, userCoords.lng], {
+                    icon: createUserMarkerIcon(window.L)
+                }).addTo(map);
                 userMarker.bindPopup('Lokasi Anda saat ini').openPopup();
 
                 userRadius = window.L.circle([userCoords.lat, userCoords.lng], {
