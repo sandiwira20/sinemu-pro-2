@@ -12,6 +12,7 @@ class AiMatchingTest extends TestCase
     public function test_match_returns_error_when_api_key_is_empty(): void
     {
         Config::set('services.gemini.api_key', '');
+        Config::set('services.groq.api_key', '');
         $service = new GeminiMatchingService;
 
         $result = $service->match([], []);
@@ -138,7 +139,7 @@ class AiMatchingTest extends TestCase
 
         Http::fake([
             'https://generativelanguage.googleapis.com/v1beta/models/gemini-primary-model*' => Http::response(['error' => 'not found'], 404),
-            'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash*' => Http::response([
+            'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash*' => Http::response([
                 'candidates' => [
                     [
                         'content' => [
@@ -162,7 +163,41 @@ class AiMatchingTest extends TestCase
 
         $this->assertTrue($result['success']);
         $this->assertSame(95, $result['similarity_score']);
-        $this->assertSame('gemini-3.6-flash', $result['model_used']);
+        $this->assertSame('gemini-2.5-flash', $result['model_used']);
+    }
+
+    public function test_match_falls_back_to_groq_when_all_gemini_models_fail(): void
+    {
+        Config::set('services.gemini.api_key', 'invalid-gemini-key');
+        Config::set('services.gemini.model', 'gemini-2.0-flash');
+        Config::set('services.groq.api_key', 'test-groq-key');
+        Config::set('services.groq.model', 'openai/gpt-oss-120b');
+        Config::set('services.ai_matching.provider', 'gemini');
+
+        Http::fake([
+            'https://generativelanguage.googleapis.com/*' => Http::response(['error' => 'invalid key'], 400),
+            'https://api.groq.com/openai/v1/chat/completions' => Http::response([
+                'choices' => [
+                    [
+                        'message' => [
+                            'content' => json_encode([
+                                'similarity_score' => 82,
+                                'recommendation' => 'high',
+                                'reasoning' => "1. Ringkasan: Barang cocok.\n2. Hal yang Cocok & Berbeda:\n- Cocok: Warna dan merek sesuai.\n3. Saran untuk Petugas: Cek identitas pelapor.",
+                            ]),
+                        ],
+                    ],
+                ],
+            ], 200),
+        ]);
+
+        $service = new GeminiMatchingService;
+        $result = $service->match(['nama_barang' => 'Dompet Hitam'], ['nama_barang' => 'Dompet Hitam']);
+
+        $this->assertTrue($result['success']);
+        $this->assertSame(82, $result['similarity_score']);
+        $this->assertSame('high', $result['recommendation']);
+        $this->assertSame('groq:openai/gpt-oss-120b', $result['model_used']);
     }
 
     public function test_match_sends_deterministic_generation_config(): void

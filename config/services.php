@@ -55,4 +55,8 @@ return [
         'provider' => env('CHATBOT_PROVIDER', 'groq'),
     ],
 
+    'ai_matching' => [
+        'provider' => env('AI_MATCHING_PROVIDER', 'gemini'),
+    ],
+
 ];

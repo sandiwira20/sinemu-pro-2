@@ -21,12 +21,22 @@ class GeminiMatchingService
 
     private string $baseUrl;
 
+    private string $groqApiKey;
+
+    private string $groqModel;
+
+    private int $groqTimeout;
+
+    private string $primaryProvider;
+
+    private const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
+
     /**
-     * Model yang akan dicoba secara berurutan jika model sebelumnya gagal
+     * Model Gemini yang akan dicoba secara berurutan jika model sebelumnya gagal
      */
     private const FALLBACK_MODELS = [
+        'gemini-2.5-flash',
         'gemini-2.0-flash',
-        'gemini-1.5-flash',
     ];
 
     /**
@@ -96,8 +106,12 @@ class GeminiMatchingService
 
     public function __construct()
     {
-        $this->apiKey = config('services.gemini.api_key', '');
+        $this->apiKey = (string) config('services.gemini.api_key', '');
         $this->baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
+        $this->groqApiKey = (string) config('services.groq.api_key', '');
+        $this->groqModel = (string) config('services.groq.model', 'llama-3.3-70b-versatile');
+        $this->groqTimeout = (int) config('services.groq.timeout', 20);
+        $this->primaryProvider = (string) config('services.ai_matching.provider', 'gemini');
     }
 
     /**
@@ -116,22 +130,47 @@ class GeminiMatchingService
      */
     public function match(array $laporanData, array $barangData): array
     {
-        if (empty($this->apiKey)) {
+        if (empty($this->apiKey) && empty($this->groqApiKey)) {
             return $this->errorResult('Gemini API key tidak dikonfigurasi.');
         }
 
-        $prompt = $this->buildPrompt($laporanData, $barangData);
-        $imageParts = $this->buildImageParts($laporanData, $barangData);
+        $providers = $this->primaryProvider === 'groq'
+            ? ['groq', 'gemini']
+            : ['gemini', 'groq'];
 
-        foreach ($this->resolveModelsToTry() as $model) {
-            $result = $this->callApi($model, $prompt, $imageParts);
+        foreach ($providers as $provider) {
+            if ($provider === 'gemini') {
+                if (empty($this->apiKey)) {
+                    continue;
+                }
 
-            if ($result !== null) {
-                return $result;
+                $prompt = $this->buildPrompt($laporanData, $barangData);
+                $imageParts = $this->buildImageParts($laporanData, $barangData);
+
+                foreach ($this->resolveModelsToTry() as $model) {
+                    $result = $this->callApi($model, $prompt, $imageParts);
+
+                    if ($result !== null) {
+                        return $result;
+                    }
+                }
+            }
+
+            if ($provider === 'groq') {
+                if (empty($this->groqApiKey)) {
+                    continue;
+                }
+
+                $textOnlyPrompt = $this->buildPrompt($laporanData, $barangData, false);
+                $result = $this->callGroq($textOnlyPrompt);
+
+                if ($result !== null) {
+                    return $result;
+                }
             }
         }
 
-        return $this->errorResult('Semua model Gemini gagal merespons.');
+        return $this->errorResult('Semua model AI (Gemini & Groq) gagal merespons.');
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -144,9 +183,9 @@ class GeminiMatchingService
      * @param  array<string, mixed>  $laporan
      * @param  array<string, mixed>  $barang
      */
-    private function buildPrompt(array $laporan, array $barang): string
+    private function buildPrompt(array $laporan, array $barang, bool $includeImages = true): string
     {
-        $hasImages = ! empty($laporan['foto_barang']) || ! empty($barang['foto_barang']);
+        $hasImages = $includeImages && (! empty($laporan['foto_barang']) || ! empty($barang['foto_barang']));
         $imageContext = $hasImages
             ? 'Foto kedua barang disertakan. Gunakan visual untuk memperkuat analisis.'
             : 'Tidak ada foto yang tersedia. Analisis berdasarkan data teks saja.';
@@ -291,6 +330,20 @@ class GeminiMatchingService
             $parts[] = $imgPart;
         }
 
+        $generationConfig = [
+            'temperature' => 0.0,
+            'topP' => 0.1,
+            'maxOutputTokens' => 2048,
+            'responseMimeType' => 'application/json',  // minta JSON murni
+        ];
+
+        // thinkingConfig hanya didukung oleh seri model gemini-2.5-*
+        if (str_starts_with($model, 'gemini-2.5')) {
+            $generationConfig['thinkingConfig'] = [
+                'thinkingBudget' => 0,
+            ];
+        }
+
         $payload = [
             'contents' => [
                 [
@@ -298,15 +351,7 @@ class GeminiMatchingService
                     'parts' => $parts,
                 ],
             ],
-            'generationConfig' => [
-                'temperature' => 0.0,
-                'topP' => 0.1,
-                'maxOutputTokens' => 2048,
-                'responseMimeType' => 'application/json',  // minta JSON murni
-                'thinkingConfig' => [
-                    'thinkingBudget' => 0,
-                ],
-            ],
+            'generationConfig' => $generationConfig,
         ];
 
         $maxRetries = 1;
@@ -325,13 +370,15 @@ class GeminiMatchingService
                     return null;  // coba model berikutnya
                 }
 
-                if ($response->status() === 503) {
+                if (in_array($response->status(), [429, 503], true)) {
                     if ($attempt < $maxRetries) {
                         sleep(2);
 
                         continue;
                     }
-                    Log::warning("GeminiMatchingService: model overloaded [{$model}]");
+                    Log::warning("GeminiMatchingService: model rate-limited/overloaded [{$model}]", [
+                        'status' => $response->status(),
+                    ]);
 
                     return null;
                 }
@@ -361,6 +408,81 @@ class GeminiMatchingService
     }
 
     /**
+     * Panggil Groq API (OpenAI-compatible) sebagai fallback atau provider utama berbasis teks.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function callGroq(string $prompt): ?array
+    {
+        $maxRetries = 1;
+        $modelLabel = substr('groq:'.$this->groqModel, 0, 60);
+
+        for ($attempt = 0; $attempt <= $maxRetries; $attempt++) {
+            try {
+                $response = Http::withHeaders(['Authorization' => 'Bearer '.$this->groqApiKey])
+                    ->timeout(max($this->groqTimeout, self::REQUEST_TIMEOUT))
+                    ->post(self::GROQ_ENDPOINT, [
+                        'model' => $this->groqModel,
+                        'messages' => [
+                            ['role' => 'user', 'content' => $prompt],
+                        ],
+                        'temperature' => 0.0,
+                        'max_tokens' => 2048,
+                    ]);
+
+                $status = $response->status();
+
+                if (in_array($status, [400, 401, 403, 404], true)) {
+                    Log::error('GeminiMatchingService: Groq non-retryable error', [
+                        'model' => $this->groqModel,
+                        'status' => $status,
+                        'body' => substr($response->body(), 0, 500),
+                    ]);
+
+                    return null;
+                }
+
+                if ($status === 429 || $status >= 500) {
+                    if ($attempt < $maxRetries) {
+                        sleep(2);
+
+                        continue;
+                    }
+                    Log::warning('GeminiMatchingService: Groq retryable error setelah max retry', [
+                        'model' => $this->groqModel,
+                        'status' => $status,
+                    ]);
+
+                    return null;
+                }
+
+                if ($response->failed()) {
+                    Log::error('GeminiMatchingService: Groq API error', [
+                        'model' => $this->groqModel,
+                        'status' => $status,
+                        'body' => substr($response->body(), 0, 500),
+                    ]);
+
+                    return null;
+                }
+
+                $rawText = $response->json('choices.0.message.content');
+
+                return $this->parseRawJsonText(is_string($rawText) ? $rawText : null, $modelLabel);
+            } catch (\Throwable $e) {
+                Log::error('GeminiMatchingService: Groq exception', [
+                    'model' => $this->groqModel,
+                    'error' => $e->getMessage(),
+                ]);
+
+                return null;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Parse respons JSON dari Gemini dan kembalikan hasil terstruktur.
      *
      * @param  array<string, mixed>|null  $responseData
@@ -369,6 +491,17 @@ class GeminiMatchingService
     private function parseApiResponse(?array $responseData, string $model): ?array
     {
         $rawText = $responseData['candidates'][0]['content']['parts'][0]['text'] ?? null;
+
+        return $this->parseRawJsonText(is_string($rawText) ? $rawText : null, substr($model, 0, 60));
+    }
+
+    /**
+     * Parse teks JSON mentah dari AI (Gemini atau Groq) menjadi struktur hasil pencocokan.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function parseRawJsonText(?string $rawText, string $model): ?array
+    {
 
         if (empty($rawText)) {
             Log::warning('GeminiMatchingService: respons kosong dari API', ['model' => $model]);
